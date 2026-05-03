@@ -79,7 +79,6 @@ namespace HotelSystem_OOP
                         break;
 
 
-
                     case 3:
 
                         Console.Write("Enter guest national ID: ");
