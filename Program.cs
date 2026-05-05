@@ -1,4 +1,6 @@
-﻿using static HotelSystem_OOP.Program;
+﻿using System;
+using static HotelSystem_OOP.Program;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace HotelSystem_OOP
 {
@@ -20,8 +22,12 @@ namespace HotelSystem_OOP
             Console.WriteLine("6. Display Booked Rooms");
             Console.WriteLine("7. Search Guest by National ID");
             Console.WriteLine("8. Show Hotel Statistics");
-            Console.WriteLine("9. Exit");
-            
+            Console.WriteLine("9. Filter Available Rooms by Type");
+            Console.WriteLine("10. Display All Guests");
+            Console.WriteLine("11. Most Expensive Active Booking");
+            Console.WriteLine("12. Guest Lifetime Booking Count");
+            Console.WriteLine("13. Exit");
+
         }
 
 
@@ -73,8 +79,10 @@ namespace HotelSystem_OOP
                         Console.Write("Enter room type: ");
                         string roomType = Console.ReadLine();
 
-                        hotel.AddRoom(roomNumber, roomType);
+                        Console.Write("Enter nightly rate: ");
+                        decimal rate = decimal.Parse(Console.ReadLine());
 
+                        hotel.AddRoom(roomNumber, roomType, rate);
 
                         break;
 
@@ -87,7 +95,10 @@ namespace HotelSystem_OOP
                         Console.Write("Enter room number: ");
                         int bookRoomNumber = int.Parse(Console.ReadLine());
 
-                        hotel.BookRoom(guestId, bookRoomNumber);
+                        Console.Write("Enter number of nights: ");
+                        int nights = int.Parse(Console.ReadLine());
+
+                        hotel.BookRoom(guestId, bookRoomNumber, nights);
 
                         break;
 
@@ -137,13 +148,59 @@ namespace HotelSystem_OOP
 
                     case 9:
 
+                        Console.Write("Enter room type (Standard / Deluxe / Suite): ");
+                        string filterType = Console.ReadLine();
+
+                        hotel.DisplayAvailableRoomsByType(filterType);
+
+
+                        break;
+
+                    case 10:
+
+                        hotel.DisplayAllGuests();
+
+                        break;
+
+                    case 11:
+
+                        hotel.FindMostExpensiveBooking();
+
+                        break;
+
+                    case 12:
+
+                        Console.Write("Enter guest national ID: ");
+                        string guestIdForStats = Console.ReadLine();
+
+                        Guest foundGuest = hotel.FindGuest(guestIdForStats);
+
+                        if (foundGuest == null)
+                        {
+                            Console.WriteLine("Guest not found.");
+                        }
+                        else
+                        {
+                            foundGuest.DisplayInfo();
+                            Console.WriteLine($"Total bookings ever made: {foundGuest.TotalBookingsMade}");
+                        }
+
+                        break;
+
+
+
+                    case 13:
+
                         exit = true;
                         Console.WriteLine("Exiting system...");
+                        
                         break;
 
 
                     default:
-                        Console.WriteLine("Invalid choice. Please select from 1 to 9.");
+
+                        Console.WriteLine("Invalid input. Please choose a number from 1 to 13.");
+                        
                         break;
 
 
@@ -167,30 +224,46 @@ namespace HotelSystem_OOP
         private static int totalGuestsCreated;
         private string nationalID;
         private string fullName;
+        private int totalBookingsMade = 0;
 
-        // Properties
-        public string NationalID
+            // Properties
+            public string NationalID
 
         {
             get { return nationalID; }
         }
 
-        
-        public string FullName
-        {
-            get { return fullName; }
-            set
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                        fullName = value;
-                }
-                
-            }
-        }
 
-        // Constructor
-        public Guest(string name, string id)
+            public string FullName
+            {
+                get { return fullName; }
+                set
+                {
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        Console.WriteLine("Error: Name cannot be empty or whitespace");
+                        return;
+                    }
+
+                    string trimmedName = value.Trim();
+
+                    if (trimmedName.Length < 3)
+                    {
+                        Console.WriteLine("Error: Name must be at least 3 characters long");
+                        return;
+                    }
+
+                    fullName = trimmedName;
+                }
+            }
+
+            public int TotalBookingsMade
+            {
+                get { return totalBookingsMade; }
+            }
+
+            // Constructor
+       public Guest(string name, string id)
 
          {
             
@@ -220,7 +293,12 @@ namespace HotelSystem_OOP
             Console.WriteLine($"Guest Name: {FullName}");
             Console.WriteLine($"National ID: {NationalID}");
         }
-    }
+
+        public void IncrementBookingCount()
+            {
+                totalBookingsMade++;
+            }
+        }
 
         
 
@@ -231,8 +309,9 @@ namespace HotelSystem_OOP
         private int roomNumber;
         private string roomType;
         private bool isBooked;
+        private decimal nightlyRate;
 
-        
+
 
         public int RoomNumber
         {
@@ -249,22 +328,34 @@ namespace HotelSystem_OOP
             get { return isBooked; }
         }
 
-        // Constructor
-        public Room(int number, string type)
-        {
-            if (string.IsNullOrWhiteSpace(type))
+        public decimal NightlyRate
+
             {
-                throw new ArgumentException("Room type cannot be null or empty.");
+                get { return nightlyRate; }
             }
 
-            roomNumber = number;
-            roomType = type;
-            isBooked = false; // default
-        }
+            // Constructor
+            public Room(int number, string type, decimal rate)
+            {
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    throw new ArgumentException("Room type cannot be null or empty.");
+                }
 
-        // Methods
+                if (rate <= 0)
+                {
+                    throw new ArgumentException("Nightly rate must be greater than zero.");
+                }
 
-        public bool Book()
+                roomNumber = number;
+                roomType = type;
+                nightlyRate = rate;
+                isBooked = false;
+            }
+
+            // Methods
+
+            public bool Book()
         {
             if (isBooked)
             {
@@ -302,10 +393,12 @@ namespace HotelSystem_OOP
         private int bookingID;
         private Guest guest;
         private Room room;
+        private int nights;
+        private decimal totalCost;
 
-        
 
-        public int BookingID
+
+       public int BookingID
 
         {
             get { return bookingID; }
@@ -321,31 +414,48 @@ namespace HotelSystem_OOP
             get { return room; }
         }
 
-        // Constructor
-        public Booking(Guest guest, Room room)
-        {
-            
-            if (guest == null)
-                throw new ArgumentNullException(nameof(guest));
+       public int Nights
+         {
+            get { return nights; }
+         }
 
-            if (room == null)
-                throw new ArgumentNullException(nameof(room));
+       public decimal TotalCost
+         {
+            get { return totalCost; }
+         }
 
-            
-            bookingID = nextBookingID++;
+            // Constructor
+            public Booking(Guest guest, Room room, int nights)
+            {
+                if (guest == null)
+                    throw new ArgumentNullException(nameof(guest));
 
-            this.guest = guest;
-            this.room = room;
-        }
+                if (room == null)
+                    throw new ArgumentNullException(nameof(room));
 
-        
-        public void DisplayInfo()
+                if (nights <= 0)
+                    
+                    throw new ArgumentException("Nights must be greater than zero.");
+
+                bookingID = nextBookingID++;
+
+                this.guest = guest;
+                this.room = room;
+                this.nights = nights;
+
+                totalCost = room.NightlyRate * nights;
+            }
+
+            public void DisplayInfo()
         {
             Console.WriteLine($"Booking ID: {BookingID}");
             Console.WriteLine($"Guest Name: {Guest.FullName}");
             Console.WriteLine($"Room Number: {Room.RoomNumber}");
             Console.WriteLine($"Room Type: {Room.RoomType}");
-        }
+            Console.WriteLine($"Nights: {Nights}");
+            Console.WriteLine($"Total Cost: {TotalCost:F3} OMR");
+
+            }
     }
 
 
@@ -374,41 +484,72 @@ namespace HotelSystem_OOP
             bookings = new List<Booking>();
         }
 
-        // =====================
-        // Guest Methods
-        // =====================
+            // =====================
+            // Guest Methods
+            // =====================
 
         public void AddGuest(string name, string id)
-        {
-           
-            Guest newGuest = new Guest(name, id);
-            guests.Add(newGuest);
+          {
+                Guest newGuest = new Guest(name, id);
 
-            Console.WriteLine("Guest added successfully.");
-        }
+                if (newGuest.FullName == null)
+                {
+                    Console.WriteLine("Guest was not added due to invalid name");
+                    return;
+                }
+
+                guests.Add(newGuest);
+                Console.WriteLine("Guest added successfully");
+           }
 
         public Guest FindGuest(string nationalID)
         {
             return guests.Find(g => g.NationalID == nationalID);
         }
 
-        // =====================
-        // Room Methods
-        // =====================
+            // =====================
+            // Room Methods
+            // =====================
 
-        public void AddRoom(int number, string type)
-        {
-            if (rooms.Exists(r => r.RoomNumber == number))
+        public void AddRoom(int number, string type, decimal rate)
             {
-                Console.WriteLine("Room with this number already exists.");
-                return;
+                if (rooms.Exists(r => r.RoomNumber == number))
+                {
+                    Console.WriteLine("Room with this number already exists.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    Console.WriteLine("Invalid room type.");
+                    return;
+                }
+
+                string normalizedType = type.Trim().ToLower();
+
+                if (normalizedType == "standard")
+                {
+                    normalizedType = "Standard";
+                }
+                else if (normalizedType == "deluxe")
+                {
+                    normalizedType = "Deluxe";
+                }
+                else if (normalizedType == "suite")
+                {
+                    normalizedType = "Suite";
+                }
+                else
+                {
+                    Console.WriteLine("Invalid room type. Allowed types: Standard, Deluxe, Suite");
+                    return;
+                }
+
+                Room newRoom = new Room(number, normalizedType, rate);
+                rooms.Add(newRoom);
+
+                Console.WriteLine("Room added successfully ");
             }
-
-            Room newRoom = new Room(number, type);
-            rooms.Add(newRoom);
-
-            Console.WriteLine("Room added successfully.");
-        }
 
         public void DisplayAvailableRooms()
         {
@@ -435,12 +576,13 @@ namespace HotelSystem_OOP
             }
         }
 
-        // =====================
-        // Booking Methods
-        // =====================
+            // =====================
+            // Booking Methods
+            // =====================
 
-        public void BookRoom(string nationalID, int roomNumber)
-        {
+        public void BookRoom(string nationalID, int roomNumber, int nights)
+            {
+
             Guest guest = FindGuest(nationalID);
             if (guest == null)
             {
@@ -461,30 +603,39 @@ namespace HotelSystem_OOP
                 return;
             }
 
-            Booking booking = new Booking(guest, room);
-            bookings.Add(booking);
+             Booking booking = new Booking(guest, room, nights);
+             bookings.Add(booking);
+             guest.IncrementBookingCount();
 
-            Console.WriteLine($"Booking successful! Booking ID: {booking.BookingID}");
+             Console.WriteLine($"Booking successful! Booking ID: {booking.BookingID}");
         }
 
         public void CancelBooking(int bookingID)
         {
             Booking booking = bookings.Find(b => b.BookingID == bookingID);
 
-            if (booking == null)
-            {
-                Console.WriteLine("Booking not found.");
-                return;
+                if (booking == null)
+                {
+                    Console.WriteLine("Booking not found.");
+                    return;
+                }
+
+                
+                Console.WriteLine("\n=== Booking Cancellation Summary ===");
+                Console.WriteLine($"Guest Name: {booking.Guest.FullName}");
+                Console.WriteLine($"Room Number: {booking.Room.RoomNumber}");
+                Console.WriteLine($"Nights Stayed: {booking.Nights}");
+                Console.WriteLine($"Total Cost Charged: {booking.TotalCost:F3} OMR");
+                Console.WriteLine("====================================");
+
+                // Free the room
+                booking.Room.CancelBooking();
+
+                // Remove booking
+                bookings.RemoveAll(b => b.BookingID == bookingID);
+
+                Console.WriteLine("Booking cancelled successfully.");
             }
-
-            // Free the room
-            booking.Room.CancelBooking();
-
-            // Remove booking
-            bookings.RemoveAll(b => b.BookingID == bookingID);
-
-            Console.WriteLine("Booking cancelled successfully.");
-        }
 
         public void SearchGuestBookings(string nationalID)
         {
@@ -525,6 +676,21 @@ namespace HotelSystem_OOP
             int availableRooms = rooms.Count(r => !r.IsBooked);
             int totalGuestsEver = Guest.GetTotalGuestsCreated();
 
+            decimal totalRevenue = 0;
+
+                foreach (var booking in bookings)
+                {
+                    totalRevenue += booking.TotalCost;
+                }
+
+                decimal averageRevenue = 0;
+
+                if (bookings.Count > 0)
+                {
+                    averageRevenue = totalRevenue / bookings.Count;
+                }
+
+
             Console.WriteLine("\n=== Hotel Statistics ===");
             Console.WriteLine($"Hotel Name: {HotelName}");
             Console.WriteLine($"Total Registered Guests: {totalGuests}");
@@ -532,7 +698,85 @@ namespace HotelSystem_OOP
             Console.WriteLine($"Booked Rooms: {bookedRooms}");
             Console.WriteLine($"Available Rooms: {availableRooms}");
             Console.WriteLine($"Total Guests Ever Created: {totalGuestsEver}");
+            Console.WriteLine($"Total Revenue: {totalRevenue:F3} OMR");
+            Console.WriteLine($"Average Booking Value: {averageRevenue:F3} OMR");
+
+
+            }
+
+        public void DisplayAvailableRoomsByType(string type)
+            {
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    Console.WriteLine("Invalid room type.");
+                    return;
+                }
+
+                Console.WriteLine($"\nAvailable {type} Rooms:");
+
+                bool found = false;
+
+                foreach (var r in rooms)
+                {
+                    if (!r.IsBooked && string.Equals(r.RoomType, type, StringComparison.OrdinalIgnoreCase))
+                    {
+                        r.DisplayInfo();
+                        Console.WriteLine("-------------------");
+                        found = true;
+                    }
+                }
+
+                if (!found)
+                {
+                    Console.WriteLine("No available rooms found for this type.");
+                }
+            }
+
+        public void DisplayAllGuests()
+            {
+                if (guests.Count == 0)
+                {
+                    Console.WriteLine("No guests registered.");
+                    return;
+                }
+
+                Console.WriteLine("\n=== All Registered Guests ===");
+
+                foreach (var g in guests)
+                {
+                    g.DisplayInfo();
+                    Console.WriteLine("-------------------");
+                }
+
+                Console.WriteLine($"Total registered guests: {guests.Count}");
+            }
+
+        public void FindMostExpensiveBooking()
+            {
+                if (bookings.Count == 0)
+                {
+                    Console.WriteLine("No active bookings.");
+                    return;
+                }
+
+                Booking max = null;
+
+                foreach (Booking b in bookings)
+                {
+                    if (max == null || b.TotalCost > max.TotalCost)
+                    {
+                        max = b;
+                    }
+                }
+
+                Console.WriteLine("\n=== Most Expensive Booking ===");
+
+                if (max != null)
+                {
+                    max.DisplayInfo();
+                }
+            }
+
         }
-    }
 }
 }
